@@ -1,0 +1,146 @@
+{
+  "name": "Zandovi: coupon image for every new Stripe customer",
+  "nodes": [
+    {
+      "parameters": {
+        "events": [
+          "customer.created"
+        ]
+      },
+      "name": "Stripe Trigger",
+      "type": "n8n-nodes-base.stripeTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "template",
+        "operation": "createFromLibrary",
+        "libraryTemplateId": "coupon-starter-variables",
+        "reuseExisting": true
+      },
+      "name": "Create coupon template",
+      "type": "@zandovi/n8n-nodes-zandovi.zandovi",
+      "typeVersion": 1,
+      "position": [
+        260,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "template",
+        "operation": "generate",
+        "templateId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.id }}"
+        },
+        "variables": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "brand_name": "Your Brand",
+            "discount": "20% OFF",
+            "offer_title": "your first order",
+            "promo_code": "={{ 'WELCOME-' + $('Stripe Trigger').item.json.data.object.id.slice(-6).toUpperCase() }}",
+            "expiry_date": "Valid for 30 days",
+            "redeem_url": "={{ 'https://example.com/redeem/' + $('Stripe Trigger').item.json.data.object.id }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "delivery": "binary",
+        "format": "png",
+        "binaryPropertyName": "data"
+      },
+      "name": "Generate coupon",
+      "type": "@zandovi/n8n-nodes-zandovi.zandovi",
+      "typeVersion": 1,
+      "position": [
+        520,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Stripe Trigger').item.json.data.object.email }}",
+        "subject": "Welcome! Here is your coupon",
+        "message": "Thanks for signing up. Your coupon is attached.",
+        "options": {
+          "attachmentsUi": {
+            "attachmentsBinary": [
+              {
+                "property": "data"
+              }
+            ]
+          }
+        }
+      },
+      "name": "Email the coupon",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        780,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Coupon for every new customer\n**Starter:** `coupon-starter-variables` (copied into your account by the Create coupon template node; Reuse Existing Copy is on, so it is created once).\n\n**API key scopes:** `templates:write` (Create From Library), `templates:read` and `render` (Generate).\n\nConnect your own **Zandovi API**, **Stripe API** and **Gmail** credentials. The QR code encodes `redeem_url`.",
+        "height": 280,
+        "width": 440
+      },
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -20,
+        -120
+      ]
+    }
+  ],
+  "connections": {
+    "Stripe Trigger": {
+      "main": [
+        [
+          {
+            "node": "Create coupon template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create coupon template": {
+      "main": [
+        [
+          {
+            "node": "Generate coupon",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate coupon": {
+      "main": [
+        [
+          {
+            "node": "Email the coupon",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

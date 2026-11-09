@@ -1,0 +1,40 @@
+{
+	"id": "5b1f2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+	"name": "Event Ticket",
+	"projectId": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+	"variables": [
+		{
+			"name": "attendee",
+			"type": "text",
+			"label": "Attendee",
+			"required": true,
+			"defaultValue": "Ana Silva",
+			"validation": { "maxLength": 80 }
+		},
+		{ "name": "seats", "type": "number", "label": "Seats", "required": false, "defaultValue": "2" },
+		{
+			"name": "tier",
+			"type": "text",
+			"label": "Tier",
+			"required": false,
+			"defaultValue": "Standard",
+			"validation": { "options": ["Standard", "VIP"] }
+		},
+		{ "name": "event_date", "type": "date", "label": "Event Date", "required": false },
+		{
+			"name": "photo",
+			"type": "image",
+			"label": "Photo",
+			"required": false,
+			"defaultValue": "zandovi://images/0e7c2a1b-3c4d-4e5f-8a9b-0c1d2e3f4a5b"
+		},
+		{
+			"name": "ticket_qr",
+			"type": "qrcode",
+			"required": false,
+			"defaultValue": "https://example.com/t/1"
+		},
+		{ "name": "ticket_barcode", "type": "barcode", "label": "Barcode", "required": false },
+		{ "name": "contact", "type": "email", "label": "Contact", "required": false }
+	]
+}

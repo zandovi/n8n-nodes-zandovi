@@ -1,0 +1,183 @@
+{
+  "name": "Zandovi: OG image for every new blog post",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyHour"
+            }
+          ]
+        },
+        "feedUrl": "https://example.com/feed.xml"
+      },
+      "name": "RSS Feed Trigger",
+      "type": "n8n-nodes-base.rssFeedReadTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "template",
+        "operation": "createFromLibrary",
+        "libraryTemplateId": "open-graph-starter-variables",
+        "reuseExisting": true
+      },
+      "name": "Create OG template",
+      "type": "@zandovi/n8n-nodes-zandovi.zandovi",
+      "typeVersion": 1,
+      "position": [
+        260,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "template",
+        "operation": "generate",
+        "templateId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.id }}"
+        },
+        "variables": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "site_name": "example.com",
+            "category": "BLOG",
+            "og_title": "={{ $('RSS Feed Trigger').item.json.title }}",
+            "og_subtitle": "={{ $('RSS Feed Trigger').item.json.contentSnippet }}",
+            "author_name": "={{ 'by ' + ($('RSS Feed Trigger').item.json.creator || 'The team') }}",
+            "read_time": ""
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "delivery": "link",
+        "format": "png"
+      },
+      "name": "Generate OG image",
+      "type": "@zandovi/n8n-nodes-zandovi.zandovi",
+      "typeVersion": 1,
+      "position": [
+        520,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "post_url",
+              "value": "={{ $('RSS Feed Trigger').item.json.link }}",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "og_image_url",
+              "value": "={{ $json.url }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Write the URL back",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        780,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## OG image for every new blog post\n**Starter:** `open-graph-starter-variables`. The Create OG template node copies it into your account; Reuse Existing Copy is on, so the copy is made once and reused on every run. Edit the copy in the Zandovi designer to match your brand.\n\n**API key scopes:** `templates:write` (Create From Library), `templates:read` and `render` (Generate).\n\nConnect your **Zandovi API** credential, then set the RSS feed URL.",
+        "height": 280,
+        "width": 440
+      },
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -20,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Share links expire\nA Share Link is deleted after the Link Expiry (Days) option, and it lasts **at most 7 days on the free plan** (paid plans keep links longer). For a permanent OG image, switch Delivery to Binary File and upload the file to your own storage.",
+        "height": 200,
+        "width": 380
+      },
+      "name": "Note: share link expiry",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        500,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Write the URL back\nReplace this Set node with an HTTP Request (or your CMS node) that saves `og_image_url` on the post.",
+        "height": 160,
+        "width": 300
+      },
+      "name": "Note: write back",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        760,
+        380
+      ]
+    }
+  ],
+  "connections": {
+    "RSS Feed Trigger": {
+      "main": [
+        [
+          {
+            "node": "Create OG template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create OG template": {
+      "main": [
+        [
+          {
+            "node": "Generate OG image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate OG image": {
+      "main": [
+        [
+          {
+            "node": "Write the URL back",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

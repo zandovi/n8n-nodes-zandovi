@@ -1,0 +1,195 @@
+{
+  "name": "Zandovi: PDF certificate for every new Google Sheets row",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "event": "rowAdded",
+        "options": {}
+      },
+      "name": "Google Sheets Trigger",
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "template",
+        "operation": "createFromLibrary",
+        "libraryTemplateId": "certificate-starter-variables",
+        "reuseExisting": true
+      },
+      "name": "Create certificate template",
+      "type": "@zandovi/n8n-nodes-zandovi.zandovi",
+      "typeVersion": 1,
+      "position": [
+        260,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "template",
+        "operation": "generate",
+        "templateId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.id }}"
+        },
+        "variables": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "recipient_name": "={{ $('Google Sheets Trigger').item.json['Recipient Name'] }}",
+            "course_name": "={{ $('Google Sheets Trigger').item.json['Course'] }}",
+            "completion_date": "={{ $('Google Sheets Trigger').item.json['Completion Date'] }}",
+            "signer_name": "Your Name",
+            "certificate_id": "={{ $('Google Sheets Trigger').item.json['Certificate ID'] }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "delivery": "binary",
+        "format": "pdf",
+        "binaryPropertyName": "data",
+        "options": {
+          "fileName": "={{ (String($('Google Sheets Trigger').item.json['Recipient Name'] ?? '').trim() || 'Unnamed recipient') + ' certificate' }}"
+        }
+      },
+      "name": "Generate certificate",
+      "type": "@zandovi/n8n-nodes-zandovi.zandovi",
+      "typeVersion": 1,
+      "position": [
+        520,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Google Sheets Trigger').item.json['Email'] }}",
+        "subject": "Your certificate",
+        "message": "Congratulations! Your certificate is attached.",
+        "options": {
+          "attachmentsUi": {
+            "attachmentsBinary": [
+              {
+                "property": "data"
+              }
+            ]
+          }
+        }
+      },
+      "name": "Email the certificate",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        800,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "upload",
+        "inputDataFieldName": "data",
+        "name": "={{ $binary.data.fileName }}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "root"
+        },
+        "options": {}
+      },
+      "name": "Upload to Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        800,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## PDF certificate from Google Sheets\n**Starter:** `certificate-starter-variables`. The Create certificate template node copies it into your account; Reuse Existing Copy is on, so the copy is made once and reused on every run. Edit the copy in the Zandovi designer to add your logo and signature.\n\n**API key scopes:** `templates:write` (Create From Library), `templates:read` and `render` (Generate).\n\nConnect your own **Zandovi API**, **Google Sheets**, **Gmail** and **Google Drive** credentials. The sheet needs the columns Recipient Name, Course, Completion Date, Certificate ID and Email. The PDF is named after the recipient (File Name option), or \"Unnamed recipient\" when the name is empty.",
+        "height": 320,
+        "width": 460
+      },
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -20,
+        -180
+      ]
+    }
+  ],
+  "connections": {
+    "Google Sheets Trigger": {
+      "main": [
+        [
+          {
+            "node": "Create certificate template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create certificate template": {
+      "main": [
+        [
+          {
+            "node": "Generate certificate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate certificate": {
+      "main": [
+        [
+          {
+            "node": "Email the certificate",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Upload to Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

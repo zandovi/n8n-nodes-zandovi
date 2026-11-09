@@ -1,0 +1,6 @@
+{
+	"variables": { "customer_name": "John Doe", "discount_code": "SAVE20" },
+	"format": "png",
+	"delivery": "link",
+	"expiresInDays": 7
+}

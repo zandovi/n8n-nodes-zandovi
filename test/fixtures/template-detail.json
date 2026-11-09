@@ -1,0 +1,32 @@
+{
+	"id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+	"name": "Summer Sale Coupon",
+	"description": "20% off coupon for summer sale campaign",
+	"projectId": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+	"sourceLibraryId": "coupon-starter-variables",
+	"viewport": { "width": 1200, "height": 630 },
+	"viewportUnit": "px",
+	"viewportExportDpi": 96,
+	"viewportOutputIntent": "screen",
+	"visibility": "SHARED",
+	"createdAt": "2026-11-01T10:00:00Z",
+	"updatedAt": "2026-11-02T12:30:00Z",
+	"thumbnailUrl": "https://app.zandovi.com/api/v1/templates/3fa85f64-5717-4562-b3fc-2c963f66afa6/thumbnail",
+	"thumbnailUpdatedAt": "2026-11-02T12:30:00Z",
+	"variables": [
+		{
+			"name": "customer_name",
+			"type": "text",
+			"label": "Customer Name",
+			"required": true,
+			"defaultValue": "John Doe"
+		},
+		{
+			"name": "discount_code",
+			"type": "text",
+			"label": "Discount Code",
+			"required": false,
+			"defaultValue": "SAVE20"
+		}
+	]
+}

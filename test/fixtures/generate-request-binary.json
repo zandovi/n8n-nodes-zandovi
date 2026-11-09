@@ -1,0 +1,5 @@
+{
+	"variables": { "customer_name": "John Doe", "discount_code": "SAVE20" },
+	"format": "png",
+	"filename": "coupon-SAVE20"
+}

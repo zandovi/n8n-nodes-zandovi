@@ -1,0 +1,18 @@
+{
+	"node": "@zandovi/n8n-nodes-zandovi.zandovi",
+	"nodeVersion": "1.0",
+	"codexVersion": "1.0",
+	"categories": ["Marketing & Content", "Productivity"],
+	"resources": {
+		"credentialDocumentation": [
+			{
+				"url": "https://docs.zandovi.com/integrations/n8n/#connect-your-account"
+			}
+		],
+		"primaryDocumentation": [
+			{
+				"url": "https://docs.zandovi.com/integrations/n8n/"
+			}
+		]
+	}
+}

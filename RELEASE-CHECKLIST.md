@@ -1,0 +1,55 @@
+# Release checklist
+
+Manual steps and unverified assumptions for the `@zandovi/n8n-nodes-zandovi` release. Tick a box only after the check was run, and write the date and the result after it. A step that fails is recorded here with its reason, then fixed in a patch release.
+
+## Phase 0: MCP Client Tool path (ships before the node)
+
+The MCP path needs no node, so it is checked and published first. Run these before anything under "Before the first publish".
+
+- [ ] AC8.1, MCP Client Tool on n8n Cloud: an MCP Client Tool on an AI Agent with endpoint `https://mcp.zandovi.com/mcp`, HTTP Streamable transport and an "MCP OAuth2" credential with automatic client registration connects through Zandovi's consent page, lists the tools and renders a library starter through `generate_image` with link delivery. Result:
+- [ ] AC8.1, MCP Client Tool on self-hosted n8n (https, current release): the same four steps. Result:
+- [ ] E35: the MCP Client Tool on a self-hosted n8n at `http://localhost:5678` registers (the loopback redirect is accepted). Record as untested if no local n8n is available. Result:
+- [ ] A6: dynamic client registration succeeded against `/oauth/register` and one test did not hit the 10-per-hour-per-IP limit. If it failed, AC8.3 applies and the MCP section of the docs page is not published. Result:
+- [ ] AC8.2: the grant from AC8.1 appears in Zandovi Settings → Connected apps; on Cloud it counts as `client="n8n"` in `oauth_grants_total`, self-hosted as `other`. Result:
+- [ ] AC8.3: if AC8.1 failed at registration (DCR rate limit or a redirect-URI refusal), the failure and the status returned are recorded here and an issue is filed for the follow-up. Result or "not applicable":
+- [ ] Publish the docs-site n8n page shell with its MCP section ("Use Zandovi from an n8n AI Agent (MCP)") only, once the checks above pass. Keep the node sections unpublished until the node is verified. Date:
+
+## Before the first publish
+
+- [ ] The API service on prod includes the connector API prerequisites (#390: optional `projectId` and `reuseExisting` on library instantiation, idempotent generate, `fileName`, `limit`). Without it Create From Library fails with "reuseExisting: Unknown property; projectId: Project ID is required" (seen on dev, 2026-11-08, api-service `e054ae15`). Check: `git merge-base --is-ancestor 2423e88f <deployed sha>`. Then run the smoke-test workflows in `docs/smoke-tests/n8n-node/` against prod. Result:
+- [ ] Publish the API clients dashboard row and remove its allow-absent markers, once the API service that labels n8n traffic is deployed. Date:
+- [ ] Mirror setup, from the header of the monorepo's mirror workflow: the public repository `zandovi/n8n-nodes-zandovi` exists with an initial commit on `main`, a deploy key with write access is added to it, and the `ZANDOVI_N8N_NODE_DEPLOY_KEY` secret holds the private key. Result:
+- [ ] npm auth for the first publish: npm allows a Trusted Publisher only on a package that already exists, so create an npm access token that can publish `@zandovi/n8n-nodes-zandovi` and add it as the `NPM_TOKEN` secret of the public repository `zandovi/n8n-nodes-zandovi` before the first mirror run. Its `publish.yml` passes it to npm, still with `--provenance`. Result:
+- [ ] First mirror run, once the deploy key and `NPM_TOKEN` secrets exist: start it manually (Actions → "Publish n8n-node/ to n8n-nodes-zandovi" → Run workflow, on `main`); no extra commit is needed. The public repository gets the commit and a `v<version>` tag, and its publish workflow starts and publishes with the token. If that publish fails, re-run it on the same tag; a version that was partly published is fixed by bumping the patch version. A re-run with no change neither commits nor retags. Result:
+
+## After the first publish
+
+- [ ] A7, after the first publish: configure an npm Trusted Publisher for `@zandovi/n8n-nodes-zandovi` with the public repository `zandovi/n8n-nodes-zandovi` and its `publish.yml`, then remove the `NPM_TOKEN` secret from the public repository. The next release publishes through OIDC with provenance; if the Trusted Publisher cannot be configured, keep the token, which still yields provenance. Result:
+- [ ] AC1.8, npm provenance: `npm view @zandovi/n8n-nodes-zandovi` shows a provenance attestation whose source repository is `zandovi/n8n-nodes-zandovi`. Result:
+- [ ] Self-hosted install and run: install the published package by name (Settings → Community nodes), then run every operation once: Template Generate, Get, Get Many, Create From Library; Image Upload (with a binary file, and check the multipart request reaches the API), Get Many; Batch Job Submit, Get, Get Items, Get Result, Cancel. Result:
+- [ ] Example workflows on the self-hosted instance: import each file in `examples/` (`og-image-per-blog-post`, `coupon-per-new-customer`, `certificate-pdf-from-sheets`) and confirm it imports without errors or unknown-parameter warnings; open its Generate node and confirm the Variables mapping still shows the shipped expressions; connect the credentials its sticky notes name, run it once and confirm the rendered output uses the mapped values. Result:
+- [ ] A1: HTTP Request → Authentication → Predefined Credential Type → Zandovi API calls `GET /api/v1/batch-jobs` on the self-hosted instance. If it cannot, the README tells users to use Header Auth with `X-Api-Key` instead. Result:
+- [ ] A5: On a self-hosted instance, a node with Retry On Fail against a stub that answers 503 then 200 sends the same Idempotency-Key on both attempts. If not, the key falls back to a hash of the workflow ID, node name, item index and request body. Also run Retry On Fail on a Zandovi tool called from an AI Agent: older Agent versions (2.x) give each retry a new run index, so a retry after a lost response may render twice there. Record the Agent version tested. Result:
+- [ ] AC3.16 and A4, tool-mode smoke test: Generate as an AI Agent tool accepts `$fromAI()` in Template "By ID" and in each Variables field, and the agent renders a template with values it chose. If the mapper fields do not accept it, add a Variables (JSON) input mode. Result:
+- [ ] Check in a live n8n that the Variables fields show "Label (default: …)" names. Result:
+- [ ] Check the minimum n8n version stated in the README (2.16) by installing the package on that version. Result:
+- [ ] Live credential test: a wrong API key fails the credential test with "Invalid or revoked API key. Create one under Settings → API Keys."; a non-Zandovi Base URL fails with that host's status. Result:
+- [ ] The `zandovi-n8n/<version>` User-Agent reaches the API and the calls show as the n8n client in the API metrics (the clients dashboard row). Result:
+- [ ] The node and credential icons are legible in the light and the dark theme. Result:
+- [ ] Callback URL + Wait flow on a public https n8n: Batch Job Submit with Callback URL `{{$execution.resumeUrl}}` and a Wait node resumes on the callback and Get Result returns the file; a callback replayed after the resume (E26) is answered by n8n and starts no duplicate run; a job that ends FAILED is also delivered to the Wait node and Get Result reports the failure. Result:
+- [ ] Loop Over Items (batch size 2) → Batch Job Submit with 5 items creates 3 jobs without errors. Result:
+- [ ] Two renders in one AI Agent turn: the agent calls Generate twice and both images render. Result:
+- [ ] Template Create From Library → Generate with Template By ID as an expression loads the Variables fields. Result:
+- [ ] A2: n8n Cloud allows executions of at least 10 minutes on the plans automation users are on (a workflow sleeping 11 minutes, or Batch Job Submit with Wait on a large job). If not, lower the default timeout to fit the smallest plan and lead the docs with the resume URL pattern. Result:
+
+## Verification and listing
+
+- [ ] creators.n8n.io submission, made after the self-hosted run above passes. Submission date and outcome (and any changes the reviewers asked for, released as patch versions):
+- [ ] Blog update while in review, after the submission: in `generate-images-in-n8n-make-zapier-workflows`, replace "there's no native node yet" for n8n with the MCP Client Tool route and "community node in review". Date:
+- [ ] n8n Cloud install and run of the published package (this fails until n8n has verified the node; record the date it first works), covering every operation once. Result:
+- [ ] Publish the node sections of the docs-site n8n page (`integrations/n8n`) once the n8n Cloud install above works, so they go live with the verified node, as Phase 0 requires. The MCP section is already live from Phase 0. Date:
+- [ ] Submit the three example workflows to n8n.io through the creator dashboard once the node is verified, and add their n8n.io URLs below and to the README "Example workflows" section.
+  - [ ] n8n.io URL for `og-image-per-blog-post`:
+  - [ ] n8n.io URL for `coupon-per-new-customer`:
+  - [ ] n8n.io URL for `certificate-pdf-from-sheets`:
+- [ ] Blog update after verification: in the same post, replace the "community node in review" text with the node install steps, keeping the HTTP Request recipe for Make and Zapier. Date:
