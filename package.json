@@ -1,6 +1,6 @@
 {
 	"name": "@zandovi/n8n-nodes-zandovi",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "n8n node for Zandovi: render image templates with variables, upload images and run batch jobs.",
 	"license": "MIT",
 	"homepage": "https://docs.zandovi.com/integrations/n8n/",
