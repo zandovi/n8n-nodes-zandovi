@@ -346,7 +346,7 @@ describe('example specifics (AC9.2, AC9.3)', () => {
 });
 
 describe('release checklist (AC9.1, D-T9.1)', () => {
-	const boxes = checklist.split('\n').filter((line) => /^- \[ \] /.test(line));
+	const boxes = checklist.split('\n').filter((line) => /^- \[[ x]\] /.test(line));
 
 	it.each([
 		['AC8.1 MCP check', /AC8\.1/],
@@ -397,7 +397,7 @@ describe('release checklist (AC9.1, D-T9.1)', () => {
 	it('publishes the docs page node sections and the post-verification blog edit only after the node is verified (D-T13.1)', () => {
 		const lines = checklist.split('\n');
 		const step = (pattern: RegExp) =>
-			lines.flatMap((line, index) => (/^- \[ \] /.test(line) && pattern.test(line) ? [index] : []));
+			lines.flatMap((line, index) => (/^- \[[ x]\] /.test(line) && pattern.test(line) ? [index] : []));
 		const [submitted] = step(/creators\.n8n\.io submission/);
 		const [verified] = step(/n8n Cloud install and run/);
 		const nodeSections = step(/node sections/).filter((index) => !/unpublished/.test(lines[index]));
@@ -412,7 +412,7 @@ describe('release checklist (AC9.1, D-T9.1)', () => {
 	it('sets up a stage-only NPM_TOKEN before the first mirror run, approves the staged version, and adds the Trusted Publisher after the first publish (D-T14.1, D-T14.2)', () => {
 		const lines = checklist.split('\n');
 		const step = (pattern: RegExp) =>
-			lines.findIndex((line) => /^- \[ \] /.test(line) && pattern.test(line));
+			lines.findIndex((line) => /^- \[[ x]\] /.test(line) && pattern.test(line));
 		const npmAuth = step(/npm auth.*`NPM_TOKEN` secret.*public repository.*before the first mirror run/i);
 		const firstRun = step(/First mirror run/);
 		const approve = step(/Approve the staged version with 2FA/);
