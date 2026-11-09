@@ -4,23 +4,40 @@ name: Publish to npm
 # pushed. GitHub only reads the root .github of a repository, so this file is
 # inert while it lives under n8n-node/ in the monorepo.
 #
-# Authentication. npm allows a Trusted Publisher only on a package that already
-# exists, so the first publish authenticates with an NPM_TOKEN secret: create it
-# in this repo (Settings -> Secrets and variables -> Actions) before the first
-# mirror run pushes a tag. After the first publish, configure the npm Trusted
-# Publisher for @zandovi/n8n-nodes-zandovi (this repo, workflow publish.yml) and
+# Staged publishing. The job runs `npm stage publish`, never `npm publish`: the
+# version goes to npm's staged queue and is not installable until a maintainer
+# approves it with 2FA, on npmjs.com (package -> Staged Packages -> Approve) or
+# with `npm stage approve <stage-id>`. npm removes direct publishing with
+# 2FA-bypass granular tokens (target: January 2027), and a stage-only token
+# cannot run `npm publish` at all. The maintainer's npm account needs 2FA.
+#
+# Authentication. The first publish uses an NPM_TOKEN secret in this repo
+# (Settings -> Secrets and variables -> Actions): a granular access token with
+# "Read and write (stage only)", without 2FA bypass. Create the NPM_TOKEN secret
+# before the first mirror run pushes a tag. Staging can create a new package,
+# so no prior manual publish is needed. After the first publish,
+# configure the npm Trusted Publisher for @zandovi/n8n-nodes-zandovi (this repo,
+# workflow publish.yml, `npm publish` off), create it right before a release
+# (a new configuration expires if it has not published within 2 days), and
 # remove the NPM_TOKEN secret. The publish step passes NODE_AUTH_TOKEN from the
-# secret unconditionally: npm CLI 11.5.1 or later tries OIDC trusted publishing
-# first, so the token is harmless once the Trusted Publisher exists, and empty
-# once the secret is removed. The job upgrades npm before publishing (Node 22
-# bundles npm 10). Provenance comes from --provenance and id-token: write either way.
+# secret unconditionally: npm tries OIDC trusted publishing first, so the token
+# is harmless once the Trusted Publisher exists, and empty once the secret is
+# removed. The job upgrades npm before publishing, because Node 22 bundles npm
+# 10 and staging needs npm 11.15.0 or later. Provenance comes from --provenance
+# and id-token: write either way.
 #
 # The package's prepublishOnly script (n8n-node prerelease) refuses to publish
 # unless RELEASE_MODE is set; the publish step sets it.
 #
-# If a run fails after the tag exists, re-run the workflow on the same tag. An
-# npm version cannot be published twice (403), so a partly published version is
-# fixed by bumping the patch version.
+# Versions are staged under the `latest` dist-tag. A pre-release version
+# (1.0.0-beta.1) needs an explicit --tag, which this job does not pass; add one
+# (e.g. --tag beta) before releasing a pre-release.
+#
+# If a run fails after the tag exists, re-run the workflow on the same tag. A
+# staged version that should not go out is rejected (Staged Packages -> Reject,
+# or `npm stage reject <stage-id>`), after which the same tag can be re-run. An
+# npm version cannot be published twice (403), so a version that was already
+# approved is fixed by bumping the patch version.
 
 on:
   push:
@@ -58,13 +75,25 @@ jobs:
       - run: npm run build
       - run: npm run scan
 
-      - name: Upgrade npm for Trusted Publishing
+      - name: Upgrade npm for staged publishing
         run: |
-          npm install -g npm@^11.5.1
+          npm install -g npm@^11.15.0
           npm --version
 
-      - name: Publish
-        run: npm publish --provenance --access public
+      - name: Stage the release
+        run: npm stage publish --provenance --access public
         env:
           RELEASE_MODE: 'true'
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Summary
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          {
+            echo "### ${TAG} staged on npm"
+            echo ""
+            echo "Not installable yet. Approve it with 2FA on npmjs.com"
+            echo "(@zandovi/n8n-nodes-zandovi -> Staged Packages -> Approve)"
+            echo "or with \`npm stage list\` then \`npm stage approve <stage-id>\`."
+          } >> "$GITHUB_STEP_SUMMARY"

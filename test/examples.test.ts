@@ -409,19 +409,24 @@ describe('release checklist (AC9.1, D-T9.1)', () => {
 		expect(installSteps).toBeGreaterThan(verified);
 	});
 
-	it('sets up npm auth with NPM_TOKEN before the first mirror run, and the Trusted Publisher after the first publish (D-T14.1, D-T14.2)', () => {
+	it('sets up a stage-only NPM_TOKEN before the first mirror run, approves the staged version, and adds the Trusted Publisher after the first publish (D-T14.1, D-T14.2)', () => {
 		const lines = checklist.split('\n');
 		const step = (pattern: RegExp) =>
 			lines.findIndex((line) => /^- \[ \] /.test(line) && pattern.test(line));
 		const npmAuth = step(/npm auth.*`NPM_TOKEN` secret.*public repository.*before the first mirror run/i);
 		const firstRun = step(/First mirror run/);
+		const approve = step(/Approve the staged version with 2FA/);
 		const firstPublished = lines.findIndex((line) => /^## After the first publish/.test(line));
 		const trustedPublisher = step(/\bA7\b.*Trusted Publisher/);
 		expect(npmAuth).toBeGreaterThanOrEqual(0);
 		expect(npmAuth).toBeLessThan(firstRun);
-		expect(lines[npmAuth]).toMatch(/Trusted Publisher only .*package that already exists/);
+		expect(lines[npmAuth]).toMatch(/Read and write \(stage only\)/);
+		expect(lines[npmAuth]).toMatch(/npm stage publish/);
 		expect(lines[firstRun]).toMatch(/start it manually/i);
+		expect(approve).toBeGreaterThan(firstRun);
+		expect(approve).toBeLessThan(firstPublished);
 		expect(trustedPublisher).toBeGreaterThan(firstPublished);
+		expect(lines[trustedPublisher]).toMatch(/direct `npm publish` off/);
 		expect(lines[trustedPublisher]).toMatch(/remove the `NPM_TOKEN` secret/);
 	});
 
