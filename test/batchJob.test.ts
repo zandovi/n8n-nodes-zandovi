@@ -726,3 +726,32 @@ describe('Batch Job → Get, Get Items, Get Result, Cancel', () => {
 		]);
 	});
 });
+
+describe('Batch Job → Submit with Variables Input: Using JSON', () => {
+	it('turns each item\'s variables object into its row', async () => {
+		const parameters = (name: string, itemIndex: number) => {
+			if (name === 'variablesInput') return 'json';
+			if (name === 'variablesJson') return items[itemIndex].json;
+			return submitParameters()(name, itemIndex);
+		};
+		const { result, calls } = run([account(400), submitted], parameters, { items });
+		await result;
+		expect((calls[1].body as { rows: unknown[] }).rows).toEqual([
+			{ name: 'Ana', amount: '10', vip: 'true' },
+			{ name: 'Ben', amount: '2.5', vip: 'false' },
+			{ name: 'Cleo', amount: '0', vip: 'true', note: 'hi' },
+		]);
+	});
+
+	it('submits nothing, not even the plan check, when one item\'s JSON is malformed', async () => {
+		const parameters = (name: string, itemIndex: number) => {
+			if (name === 'variablesInput') return 'json';
+			if (name === 'variablesJson') return itemIndex === 1 ? '{not json' : items[itemIndex].json;
+			return submitParameters()(name, itemIndex);
+		};
+		const { result, calls } = run([], parameters, { items });
+		const error = await failureOf(result);
+		expect(error.message).toContain('Variables (JSON) must be a JSON object');
+		expect(calls).toHaveLength(0);
+	});
+});

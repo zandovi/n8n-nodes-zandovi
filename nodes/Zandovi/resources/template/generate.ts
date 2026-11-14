@@ -3,7 +3,7 @@ import { NodeOperationError } from 'n8n-workflow';
 import { idempotencyKey } from '../../shared/idempotency';
 import type { ZandoviOperation } from '../../shared/operations';
 import { templateIdOf, templateLocatorProperties } from '../../shared/templateLocator';
-import { mappedVariables, variablesProperty } from '../../shared/variablesMapper';
+import { mappedVariables, variablesProperties } from '../../shared/variablesMapper';
 import { header } from '../../transport/errors';
 import { zandoviRequest } from '../../transport/request';
 
@@ -167,7 +167,7 @@ export const generateOperation: ZandoviOperation = {
 	description: 'Render a Zandovi template with variable values and return the image file',
 	properties: [
 		...templateLocatorProperties,
-		variablesProperty,
+		...variablesProperties,
 		{
 			displayName: 'Delivery',
 			name: 'delivery',

@@ -3,8 +3,13 @@ import { describe, expect, it } from 'vitest';
 import {
 	getTemplateVariables,
 	NO_VARIABLES_MESSAGE,
+	parseVariablesJson,
 	toVariables,
+	VARIABLES_JSON_MESSAGE,
 	variableFields,
+	variablesInputProperty,
+	variablesJsonProperty,
+	variablesProperties,
 	variablesProperty,
 } from '../nodes/Zandovi/shared/variablesMapper';
 import type { VariableInfo } from '../nodes/Zandovi/shared/variablesMapper';
@@ -205,5 +210,80 @@ describe('variablesProperty (AC3.1, AC3.4)', () => {
 				},
 			},
 		});
+	});
+});
+
+describe('parseVariablesJson (Variables Input: Using JSON)', () => {
+	it('takes the object an expression resolved to, under the mapper rules', () => {
+		expect(
+			parseVariablesJson({
+				customer_name: 'Ana',
+				seats: 2,
+				vip: true,
+				note: '',
+				gone: null,
+				zero: 0,
+			}),
+		).toEqual({ variables: { customer_name: 'Ana', seats: '2', vip: 'true', zero: '0' } });
+	});
+
+	it('parses JSON text typed into the field', () => {
+		expect(parseVariablesJson('{"customer_name": "Ana", "price": 19.9}')).toEqual({
+			variables: { customer_name: 'Ana', price: '19.9' },
+		});
+	});
+
+	it('treats empty text, null and undefined as no variables, so every default renders', () => {
+		for (const empty of ['', '   ', '{}', null, undefined, {}]) {
+			expect(parseVariablesJson(empty), String(empty)).toEqual({ variables: {} });
+		}
+	});
+
+	it('refuses text that is not JSON, a list, or a scalar', () => {
+		for (const bad of ['{customer_name: Ana}', '[1, 2]', '"Ana"', '42', ['Ana'], 'true', 7]) {
+			expect(parseVariablesJson(bad), JSON.stringify(bad)).toEqual({
+				error: VARIABLES_JSON_MESSAGE,
+			});
+		}
+	});
+
+	it('names a variable whose value is an object or a list', () => {
+		expect(parseVariablesJson({ customer_name: 'Ana', address: { city: 'Warsaw' } })).toEqual({
+			error:
+				'Variable "address" in Variables (JSON) must be text, a number or true/false, not an object or a list',
+		});
+		expect(parseVariablesJson('{"tags": ["a", "b"]}')).toMatchObject({
+			error: expect.stringContaining('Variable "tags"'),
+		});
+	});
+});
+
+describe('Variables Input fields', () => {
+	it('defaults to the mapper, so workflows saved before the switch keep working', () => {
+		expect(variablesInputProperty).toMatchObject({
+			name: 'variablesInput',
+			type: 'options',
+			default: 'mapper',
+			noDataExpression: true,
+		});
+		expect(
+			(variablesInputProperty.options as Array<{ value: string }>).map((option) => option.value),
+		).toEqual(['mapper', 'json']);
+	});
+
+	it('shows the mapper for Map Each Variable and the JSON field for Using JSON', () => {
+		expect(variablesProperty.displayOptions?.show?.variablesInput).toEqual(['mapper']);
+		expect(variablesJsonProperty).toMatchObject({
+			name: 'variablesJson',
+			type: 'json',
+			default: '{}',
+			displayOptions: { show: { variablesInput: ['json'] } },
+		});
+		expect(variablesJsonProperty).not.toHaveProperty('noDataExpression');
+		expect(variablesProperties.map((property) => property.name)).toEqual([
+			'variablesInput',
+			'variables',
+			'variablesJson',
+		]);
 	});
 });

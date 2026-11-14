@@ -3,7 +3,7 @@ import { NodeOperationError, sleep } from 'n8n-workflow';
 import { idempotencyKey } from '../../shared/idempotency';
 import type { ZandoviWholeInputOperation } from '../../shared/operations';
 import { templateIdOf, templateLocatorProperties } from '../../shared/templateLocator';
-import { mappedVariables, variablesProperty } from '../../shared/variablesMapper';
+import { mappedVariables, variablesProperties } from '../../shared/variablesMapper';
 import { zandoviError } from '../../transport/errors';
 import { zandoviRequest } from '../../transport/request';
 import { DPI_AND_SCALE_MESSAGE } from '../template/generate';
@@ -122,6 +122,9 @@ async function executeAll(this: IExecuteFunctions): Promise<INodeExecutionData[]
 		throw new NodeOperationError(this.getNode(), TIMEOUT_RANGE_MESSAGE);
 	}
 
+	// Every row is read before any request, so a malformed Variables (JSON) item sends nothing.
+	const rows = items.map((_, itemIndex) => mappedVariables.call(this, itemIndex));
+
 	const cap = await maxRowsPerJob.call(this);
 	if (cap !== null && items.length > cap) {
 		throw new NodeOperationError(
@@ -136,7 +139,7 @@ async function executeAll(this: IExecuteFunctions): Promise<INodeExecutionData[]
 	if (options.filenamePattern) template.output = { filenamePattern: options.filenamePattern };
 	const body: IDataObject = {
 		template,
-		rows: items.map((_, itemIndex) => mappedVariables.call(this, itemIndex)),
+		rows,
 	};
 	if (options.callbackUrl) body.callbackUrl = options.callbackUrl;
 	const key = options.idempotencyKey || idempotencyKey.call(this, 'batch');
@@ -162,7 +165,7 @@ export const submitOperation: ZandoviWholeInputOperation = {
 		'Render one template once per input item as a single batch job and return the job, by default once it has finished',
 	properties: [
 		...templateLocatorProperties,
-		variablesProperty,
+		...variablesProperties,
 		{
 			displayName: 'Format',
 			name: 'format',

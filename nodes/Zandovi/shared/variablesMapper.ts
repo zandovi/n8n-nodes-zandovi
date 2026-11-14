@@ -11,6 +11,11 @@ import { zandoviRequest } from '../transport/request';
 import { isUuid, TEMPLATE_ID_MESSAGE } from './templateLocator';
 
 export const NO_VARIABLES_MESSAGE = 'This template has no variables';
+export const VARIABLES_JSON_MESSAGE =
+	'Variables (JSON) must be a JSON object of variable names to values, such as {"customer_name": "Ana"}';
+
+/** How the Variables Input field says the variables are given. */
+export type VariablesInput = 'mapper' | 'json';
 
 /** A template variable as `GET /templates/{id}` describes it (VariableInfo). */
 export interface VariableInfo {
@@ -100,14 +105,93 @@ export function toVariables(
 	return variables;
 }
 
-/** The Variables mapper's values for an item, as the API's `variables` map. */
+/**
+ * A Variables (JSON) value as the API's `variables` map, under the same rules as the mapper: an
+ * object of names to text, numbers or booleans, every value sent as a string, and empty, null
+ * or undefined values left out so the template default renders. Accepts the object an
+ * expression such as `{{ $json.variables }}` resolves to, or JSON text; an empty value is `{}`.
+ * Returns an error message instead of throwing, so the caller can attach the item index.
+ */
+export function parseVariablesJson(
+	raw: unknown,
+): { variables: Record<string, string> } | { error: string } {
+	let value = raw;
+	if (typeof value === 'string') {
+		if (value.trim() === '') return { variables: {} };
+		try {
+			value = JSON.parse(value);
+		} catch {
+			return { error: VARIABLES_JSON_MESSAGE };
+		}
+	}
+	if (value === undefined || value === null) return { variables: {} };
+	if (typeof value !== 'object' || Array.isArray(value)) return { error: VARIABLES_JSON_MESSAGE };
+	const nested = Object.entries(value).find(
+		([, entry]) => entry !== null && typeof entry === 'object',
+	);
+	if (nested) {
+		return {
+			error: `Variable "${nested[0]}" in Variables (JSON) must be text, a number or true/false, not an object or a list`,
+		};
+	}
+	return { variables: toVariables(value as ResourceMapperValue['value']) };
+}
+
+/**
+ * The item's variables as the API's `variables` map: from the Variables mapper, or from
+ * Variables (JSON) when Variables Input is Using JSON. Workflows saved before Variables Input
+ * existed have no value for it and keep using the mapper.
+ */
 export function mappedVariables(
 	this: IExecuteFunctions,
 	itemIndex: number,
 ): Record<string, string> {
+	const input = this.getNodeParameter('variablesInput', itemIndex, 'mapper') as VariablesInput;
+	if (input === 'json') {
+		const parsed = parseVariablesJson(this.getNodeParameter('variablesJson', itemIndex, '{}'));
+		if ('error' in parsed) {
+			throw new NodeOperationError(this.getNode(), parsed.error, { itemIndex });
+		}
+		return parsed.variables;
+	}
 	const mapper = this.getNodeParameter('variables', itemIndex, null) as ResourceMapperValue | null;
 	return toVariables(mapper?.value);
 }
+
+/** Whether the variables come from the mapper (one field per variable) or one JSON object. */
+export const variablesInputProperty: INodeProperties = {
+	displayName: 'Variables Input',
+	name: 'variablesInput',
+	type: 'options',
+	noDataExpression: true,
+	options: [
+		{
+			name: 'Map Each Variable',
+			value: 'mapper',
+			description: "Fill one field per variable of the chosen template",
+		},
+		{
+			name: 'Using JSON',
+			value: 'json',
+			description:
+				'Give all variables as one JSON object, for example from the input item, when the template changes per item',
+		},
+	],
+	default: 'mapper',
+	description: 'How to give the values of the template variables',
+};
+
+/** All variables as one JSON object, shown when Variables Input is Using JSON. */
+export const variablesJsonProperty: INodeProperties = {
+	displayName: 'Variables (JSON)',
+	name: 'variablesJson',
+	type: 'json',
+	default: '{}',
+	displayOptions: { show: { variablesInput: ['json'] } },
+	hint: 'For example {{ $json.variables }}, or {"customer_name": "Ana", "discount_code": "SAVE20"}',
+	description:
+		'An object of variable names to values (text, numbers or true/false); a variable left out, empty or null uses the template default',
+};
 
 /** The Variables mapper: one field per variable of the template the locator points at. */
 export const variablesProperty: INodeProperties = {
@@ -117,6 +201,7 @@ export const variablesProperty: INodeProperties = {
 	noDataExpression: true,
 	default: { mappingMode: 'defineBelow', value: null },
 	required: true,
+	displayOptions: { show: { variablesInput: ['mapper'] } },
 	description:
 		"The value for each of the template's variables; empty optional fields use the template default",
 	typeOptions: {
@@ -132,3 +217,10 @@ export const variablesProperty: INodeProperties = {
 		},
 	},
 };
+
+/** The Variables fields every template-rendering operation shows, in order. */
+export const variablesProperties: INodeProperties[] = [
+	variablesInputProperty,
+	variablesProperty,
+	variablesJsonProperty,
+];

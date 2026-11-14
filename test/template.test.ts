@@ -788,3 +788,72 @@ describe('Template → Get Many (AC4.2)', () => {
 		expect(await result).toEqual([[]]);
 	});
 });
+
+describe('Template → Generate with Variables Input: Using JSON', () => {
+	const OTHER_TEMPLATE_ID = '8a6e0804-2bd0-4672-b79d-d97027f9071a';
+	const rows = [
+		{ templateId: TEMPLATE_ID, variables: { customer_name: 'Ana', seats: 2 } },
+		{ templateId: OTHER_TEMPLATE_ID, variables: { headline: 'Hello', vip: true, note: '' } },
+	];
+	// What n8n hands the node for {{ $json.templateId }} and {{ $json.variables }} on each item.
+	const perItem = (name: string, itemIndex: number) => {
+		if (name === 'templateId') return { __rl: true, mode: 'id', value: rows[itemIndex].templateId };
+		if (name === 'variablesInput') return 'json';
+		if (name === 'variablesJson') return rows[itemIndex].variables;
+		if (name === 'variables') throw new Error('the mapper must not be read in JSON mode');
+		return generateParameters()[name];
+	};
+
+	it('renders each item with its own template and variables object', async () => {
+		const { result, calls } = run([binaryReply(), binaryReply()], perItem, {
+			items: rows.map((row) => ({ json: row })),
+		});
+		const [output] = await result;
+		expect(output).toHaveLength(2);
+		expect(calls.map((call) => [call.url, (call.body as IDataObject).variables])).toEqual([
+			[GENERATE_URL, { customer_name: 'Ana', seats: '2' }],
+			[
+				`https://app.zandovi.com/api/v1/templates/${OTHER_TEMPLATE_ID}/generate`,
+				{ headline: 'Hello', vip: 'true' },
+			],
+		]);
+		expect(output.map((item) => item.json.templateId)).toEqual([TEMPLATE_ID, OTHER_TEMPLATE_ID]);
+	});
+
+	it('accepts JSON text typed into the field', async () => {
+		const { result, calls } = run(
+			[binaryReply()],
+			generateParameters({
+				variablesInput: 'json',
+				variablesJson: '{"customer_name": "Ana", "discount_code": "SAVE20"}',
+			}),
+		);
+		await result;
+		expect((calls[0].body as IDataObject).variables).toEqual({
+			customer_name: 'Ana',
+			discount_code: 'SAVE20',
+		});
+	});
+
+	it('fails the item without a request when the value is not an object', async () => {
+		const { result, calls } = run(
+			[],
+			generateParameters({ variablesInput: 'json', variablesJson: '[1, 2]' }),
+		);
+		const error = await failureOf(result);
+		expect(error.message).toBe(
+			'Variables (JSON) must be a JSON object of variable names to values, such as {"customer_name": "Ana"}',
+		);
+		expect(error.context.itemIndex).toBe(0);
+		expect(calls).toHaveLength(0);
+	});
+
+	it('keeps using the mapper when Variables Input was never set', async () => {
+		const { result, calls } = run([binaryReply()], generateParameters());
+		await result;
+		expect((calls[0].body as IDataObject).variables).toEqual({
+			customer_name: 'John Doe',
+			discount_code: 'SAVE20',
+		});
+	});
+});
