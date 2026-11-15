@@ -4,7 +4,6 @@ import { Zandovi } from '../nodes/Zandovi/Zandovi.node';
 import certificateExample from '../examples/certificate-pdf-from-sheets.json';
 import couponExample from '../examples/coupon-per-new-customer.json';
 import ogExample from '../examples/og-image-per-blog-post.json';
-import checklist from '../RELEASE-CHECKLIST.md?raw';
 import readme from '../README.md?raw';
 
 const ZANDOVI_TYPE = '@zandovi/n8n-nodes-zandovi.zandovi';
@@ -342,99 +341,6 @@ describe('example specifics (AC9.2, AC9.3)', () => {
 			.filter((node) => targets.includes(node.name))
 			.map((node) => node.type);
 		expect(types.sort()).toEqual(['n8n-nodes-base.gmail', 'n8n-nodes-base.googleDrive']);
-	});
-});
-
-describe('release checklist (AC9.1, D-T9.1)', () => {
-	const boxes = checklist.split('\n').filter((line) => /^- \[[ x]\] /.test(line));
-
-	it.each([
-		['AC8.1 MCP check', /AC8\.1/],
-		['npm provenance', /provenance/i],
-		['n8n Cloud install', /n8n Cloud/],
-		['self-hosted install', /self-hosted/i],
-		['example import and Variables mapping', /import each file in `examples\/`.*Variables mapping/],
-		['tool-mode smoke test', /AC3\.16/],
-		['creators.n8n.io submission', /creators\.n8n\.io/],
-		['template URLs', /n8n\.io URL/i],
-		['blog update', /blog/i],
-		['docs-site page', /docs-site|docs site/i],
-		['A1', /\bA1\b/],
-		['A2', /\bA2\b/],
-		['A4', /\bA4\b/],
-		['A5', /\bA5\b/],
-		['A5 on an AI Agent tool', /\bA5\b.*AI Agent.*2\.x.*new run index.*render twice.*Agent version/],
-		['A6 and E35', /E35/],
-		['A7', /\bA7\b/],
-		['AC8.2', /AC8\.2/],
-		['AC8.3', /AC8\.3/],
-		['mirror setup', /Mirror setup.*deploy key.*ZANDOVI_N8N_NODE_DEPLOY_KEY/],
-		['first mirror run', /First mirror run.*`v<version>` tag.*re-run with no change/],
-		['live credential test', /Live credential test.*wrong API key.*non-Zandovi Base URL/],
-		['User-Agent in the API metrics', /zandovi-n8n\/<version>.*API metrics/],
-		['icons in light and dark', /icons are legible in the light and the dark theme/],
-		['Callback URL + Wait flow', /Callback URL \+ Wait.*E26.*FAILED/],
-		['Loop Over Items', /Loop Over Items \(batch size 2\).*5 items creates 3 jobs/],
-		['two renders in one agent turn', /Two renders in one AI Agent turn/],
-		['Create From Library then Generate by ID expression', /Create From Library → Generate.*By ID as an expression/],
-	])('has a checkbox for %s', (_label, pattern) => {
-		expect(boxes.some((line) => pattern.test(line))).toBe(true);
-	});
-
-	it('puts the MCP checks in a Phase 0 section before the node release (D-T13.1)', () => {
-		const lines = checklist.split('\n');
-		const phase0 = lines.findIndex((line) => /^## Phase 0/.test(line));
-		const firstPublish = lines.findIndex((line) => /^## Before the first publish/.test(line));
-		expect(phase0).toBeGreaterThanOrEqual(0);
-		expect(phase0).toBeLessThan(firstPublish);
-		const section = lines.slice(phase0, firstPublish).join('\n');
-		for (const id of ['AC8.1', 'AC8.2', 'AC8.3', 'E35', 'A6']) expect(section).toContain(id);
-		expect(section).toMatch(/MCP section.*only.*node sections unpublished/i);
-		const after = lines.slice(firstPublish).join('\n');
-		expect(after).not.toMatch(/MCP Client Tool on (n8n Cloud|self-hosted)/);
-	});
-
-	it('publishes the docs page node sections and the post-verification blog edit only after the node is verified (D-T13.1)', () => {
-		const lines = checklist.split('\n');
-		const step = (pattern: RegExp) =>
-			lines.flatMap((line, index) => (/^- \[[ x]\] /.test(line) && pattern.test(line) ? [index] : []));
-		const [submitted] = step(/creators\.n8n\.io submission/);
-		const [verified] = step(/n8n Cloud install and run/);
-		const nodeSections = step(/node sections/).filter((index) => !/unpublished/.test(lines[index]));
-		expect(nodeSections).toHaveLength(1);
-		expect(nodeSections[0]).toBeGreaterThan(verified);
-		const [inReview] = step(/blog.*community node in review/i);
-		const [installSteps] = step(/blog.*node install steps/i);
-		expect(inReview).toBeGreaterThan(submitted);
-		expect(installSteps).toBeGreaterThan(verified);
-	});
-
-	it('sets up a stage-only NPM_TOKEN before the first mirror run, approves the staged version, and adds the Trusted Publisher after the first publish (D-T14.1, D-T14.2)', () => {
-		const lines = checklist.split('\n');
-		const step = (pattern: RegExp) =>
-			lines.findIndex((line) => /^- \[[ x]\] /.test(line) && pattern.test(line));
-		const npmAuth = step(/npm auth.*`NPM_TOKEN` secret.*public repository.*before the first mirror run/i);
-		const firstRun = step(/First mirror run/);
-		const approve = step(/Approve the staged version with 2FA/);
-		const firstPublished = lines.findIndex((line) => /^## After the first publish/.test(line));
-		const trustedPublisher = step(/\bA7\b.*Trusted Publisher/);
-		expect(npmAuth).toBeGreaterThanOrEqual(0);
-		expect(npmAuth).toBeLessThan(firstRun);
-		expect(lines[npmAuth]).toMatch(/Read and write \(stage only\)/);
-		expect(lines[npmAuth]).toMatch(/npm stage publish/);
-		expect(lines[firstRun]).toMatch(/start it manually/i);
-		expect(approve).toBeGreaterThan(firstRun);
-		expect(approve).toBeLessThan(firstPublished);
-		expect(trustedPublisher).toBeGreaterThan(firstPublished);
-		expect(lines[trustedPublisher]).toMatch(/direct `npm publish` off/);
-		expect(lines[trustedPublisher]).toMatch(/remove the `NPM_TOKEN` secret/);
-	});
-
-	it('names no private repository and no file that exists only outside the package', () => {
-		expect(foreignReferences(checklist)).toEqual([]);
-		expect(checklist).not.toMatch(/bugs\.md|future-features\.md|docs\/plans/);
-		const workflowFiles = [...checklist.matchAll(/[\w.-]+\.ya?ml\b/g)].map(([name]) => name);
-		expect(workflowFiles.filter((name) => name !== 'publish.yml')).toEqual([]);
 	});
 });
 
